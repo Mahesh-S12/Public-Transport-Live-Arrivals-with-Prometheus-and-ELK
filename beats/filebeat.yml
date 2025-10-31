@@ -1,0 +1,21 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/ptla/*.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.overwrite_keys: true
+
+setup.template.enabled: true
+setup.ilm.enabled: false
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+
+
+

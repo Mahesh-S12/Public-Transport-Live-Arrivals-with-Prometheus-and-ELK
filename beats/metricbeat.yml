@@ -1,0 +1,18 @@
+metricbeat.modules:
+  - module: prometheus
+    period: 15s
+    hosts: ["http://app:8000"]
+    metrics_path: /metrics
+
+setup.template.enabled: true
+setup.ilm.enabled: false
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+
+
+
