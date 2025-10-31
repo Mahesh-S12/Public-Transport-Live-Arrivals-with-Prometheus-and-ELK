@@ -1,0 +1,85 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.14
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.14
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    environment:
+      - LOG_PATH=/var/log/ptla/app.log
+      # Configure your real GTFS-RT endpoints and context here (no .env needed)
+      - FEED_VEHICLE_POSITIONS=https://cdn.mbta.com/realtime/VehiclePositions.pb
+      - FEED_TRIP_UPDATES=https://cdn.mbta.com/realtime/TripUpdates.pb
+      - AGENCY_ID=mbta
+      - CITY=boston
+      - POLL_SECONDS=15
+    volumes:
+      - ptla-logs:/var/log/ptla
+    ports:
+      - "8000:8000"
+
+  filebeat:
+    build:
+      context: ./beats
+      dockerfile: filebeat.Dockerfile
+    user: root
+    volumes:
+      - ptla-logs:/var/log/ptla:ro
+    depends_on:
+      - elasticsearch
+
+  metricbeat:
+    build:
+      context: ./beats
+      dockerfile: metricbeat.Dockerfile
+    user: root
+    depends_on:
+      - elasticsearch
+      - app
+
+volumes:
+  esdata:
+  prometheus-data:
+  ptla-logs:
+
+
